@@ -294,6 +294,8 @@ class TRFRecord(VmatchRecord):
 	def unit_key(self):
 		key = self.unit, str(Seq(self.unit).reverse_complement())
 		return tuple(sorted(key))	
+	def __len__(self):
+		return self.end-self.start+1
 	def add_bin(self):
 		try:
 			bin_chrom, bin_start, bin_end = re.compile(r'(\S+):(\d+)-(\d+)').match(self.chrom).groups()

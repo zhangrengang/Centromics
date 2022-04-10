@@ -8,10 +8,11 @@ import multiprocessing
 from collections import OrderedDict, Counter
 from xopen import xopen as open
 from Bio import SeqIO
+from REPcluster.Mcl import MclGroup
 from .small_tools import mkdirs, rmdirs, mk_ckp, check_ckp, test_s
 from .RunCmdsMP import logger, run_cmd
 from .sample_seqs import subsample_seqs
-from .Trf import Trf
+from .Trf import Trf, filter_trf_family, trf_map
 from .__version__ import version
 
 NCPU = multiprocessing.cpu_count()
@@ -25,7 +26,7 @@ def makeArgparse():
 	# input
 	group_in = parser.add_argument_group('Input', )
 	group_in.add_argument('-g', '-genome', default=None, metavar='FILE', 
-					dest='genome', required=True,
+					dest='genome', 
 					help="Genome FASTA file [required]")
 	group_in.add_argument('-l', '-long', default=None, metavar='FILE', nargs='+', 
 					required=True, dest='long',
@@ -38,7 +39,7 @@ in fastq or fasta format [required]")
 					
 	# output
 	group_out = parser.add_argument_group('Output')
-	group_out.add_argument('-pre', '-prefix', default='', dest='prefix', metavar='STR',
+	group_out.add_argument('-pre', '-prefix', default='centomics', dest='prefix', metavar='STR',
 					help="Prefix for output [default=%(default)s]")
 	group_out.add_argument('-o', '-outdir', default='cent-output', dest='outdir', metavar='DIR',
 					help="Output directory [default=%(default)s]")
@@ -46,14 +47,22 @@ in fastq or fasta format [required]")
 					help="Temporary directory [default=%(default)s]")
 	# tandem repeat
 	group_tr = parser.add_argument_group('Kmer matrix',)
-	group_tr.add_argument('-subsample', type=int, default=10, metavar='INT',
-					 help="Subsample long reads up to N depth [default=%(default)s]")
+	group_tr.add_argument('-subsample_x', type=int, default=10, metavar='INT',
+					 help="Subsample long reads up to X depth (prior to `-subsample_n`) [default=%(default)s]")
+	group_tr.add_argument('-subsample_n', type=int, default=100000, metavar='INT',
+					 help="Subsample long reads up to N reads [default=%(default)s]")
 	group_tr.add_argument('-trf_opts', default='1 1 2 80 5 200 2000 -d -h', type=str,metavar='STR',
 					help="TRF options to identify tandem repeats on a read [default='%(default)s']")
 	group_tr.add_argument('-min_cov', type=float, default=0.9, metavar='FLOAT',
 					 help="Minimum coverage of tandem repeats for a read [default=%(default)s]")
-	group_tr.add_argument('-clust_opts', default='-m min -k 15 -c 0.2 -x 2 -I 2', type=str, metavar='STR',
+	group_tr.add_argument('-min_len', type=int, default=100, metavar='INT',
+					 help="Minimum length of tandem repeats for a read [default=%(default)s]")
+	group_tr.add_argument('-min_monomer_len', type=int, default=1, metavar='INT',
+					 help="Minimum monomer length of a tandem repeat [default=%(default)s]")
+	group_tr.add_argument('-clust_opts', default='-m jaccard -k 15 -c 0.2 -x 2 -I 2', type=str, metavar='STR',
 					help="REPclust options to cluster tandem repeat units [default='%(default)s']")
+	group_tr.add_argument('-min_ratio', type=float, default=0.1, metavar='FLOAT',
+					 help="Minimum relative mass ratio to filter tandem repeats [default=%(default)s]")
 
 	# others
 	group_other = parser.add_argument_group('Other options')
@@ -126,12 +135,18 @@ kmer-db distance {measure} -phylip-out {matrix}'''.format(
 		
 		logger.info('Import `{}` and `{}` into Cytoscape for visualization'.format(network, attr))
 	def run_long(self):
-		genome_size = sum([len(rc.seq) for rc in SeqIO.parse(self.genome, 'fasta')])
 		# sample reads
-		logger.info('Subsample {}x reads from {}'.format(self.subsample, self.long))
+		if self.genome is not None:
+			genome_size = sum([len(rc.seq) for rc in SeqIO.parse(self.genome, 'fasta')])
+			logger.info('Subsample {}x reads from {}'.format(self.subsample_x, self.long))
+			L, N = self.subsample_x*genome_size, None
+		else:
+			L, N = None, self.subsample_n
+			logger.info('Subsample {} reads from {}'.format(self.subsample_n, self.long))
+			
 		reads_fa = '{}sample.fa'.format(self.tmpdir)
 		with open(reads_fa, 'w') as fout:
-			total_num, total_len = subsample_seqs(self.long, fout, L=self.subsample*genome_size)
+			total_num, total_len = subsample_seqs(self.long, fout, L=L, N=N)
 			
 		# run trf
 		logger.info('Run TRF to identify tandem repeats in reads')
@@ -140,16 +155,34 @@ kmer-db distance {measure} -phylip-out {matrix}'''.format(
 				nbins=self.ncpu*2, window_size=1e9, )
 		trf_fa = '{}trf.fa'.format(self.tmpdir)
 		with open(trf_fa, 'w') as fout:
-			trf.reads_trf(fout, min_cov=self.min_cov)
+			d_trf_len = trf.reads_trf(fout, min_cov=self.min_cov)
 			
 		# cluster
 		logger.info('Cluster tandem repeats to identify TR families')
 		tmpdir = '{}clust'.format(self.tmpdir)
-		opts = '-pre repclust -outdir {0} -tmpdir {0}'.format(tmpdir)
-		cmd = 'REPclust -f {} {} {}'.format(trf_fa, self.clust_opts, opts)
+		opts = '-pre {2} -outdir {0} -tmpdir {0} -p {1}'.format(tmpdir, self.ncpu, self.prefix)
+		if self.overwrite:
+			opts += ' -overwrite'
+		cmd = 'REPclust {} {} {}'.format(trf_fa, self.clust_opts, opts)
 		run_cmd(cmd, log=True)
-		mcl = '{}/repclust.a2a.filter.mcl'.format(tmpdir)
+		trfmcl = '{}/{}.mcl'.format(tmpdir, self.prefix)
+		trfseq = '{}/{}.fa'.format(tmpdir, self.prefix)
 		
+		# filter trf family
+		logger.info('Filter tandem repeats as putive centromeric')
+		trf_fam = self.outdir + 'trf.fa'
+		with open(trf_fam, 'w') as fout:
+			filter_trf_family(trfseq, trfmcl, d_trf_len, fout, total_len=total_len, min_ratio=self.min_ratio)
+			
+		if self.genome is None:
+			return trf_fam
+		# align with genome and count density
+		logger.info('Align with genome and count')
+		trf_count = self.outdir + 'trf.count'
+		with open(trf_count, 'w') as fout:
+			trf_map(trf_fam, self.genome, fout, min_cov=0.9, ncpu=self.ncpu, window_size=10000)
+		
+		return trf_count
 		
 def main():
 	args = makeArgparse()
@@ -158,7 +191,6 @@ def main():
 	logger.info('Arguments: {}'.format(args.__dict__))
 	pipeline = Pipeline(**args.__dict__)
 	pipeline.run()
-
 
 if __name__ == '__main__':
 	main()
