@@ -54,3 +54,37 @@ class FastxRecord:
 			print('>{}\n{}'.format(self.description, self.seq), file=fout)
 		elif seqfmt == 'fastq':
 			print('>{}\n{}\n+\n{}'.format(self.description, self.seq, self.qual), file=fout)
+
+class Mnd:
+	def __init__(self, mnd):
+		self.mnd = mnd
+	def __iter__(self):
+		return self._parse()
+	def _parse(self):
+		for line in open(self.mnd):
+			yield MndLongLine(line)
+	def count_links(self, diff_chr=True, bin_size=1000):
+		d_count = {}
+		for rc in self:
+			if diff_chr and rc.chr1 == rc.chr2:
+				continue
+			for chr, pos in [(rc.chr1, rc.pos1), (rc.chr2, rc.pos2)]:
+				bin = chr, pos // bin_size * bin_size
+				try: d_count[bin] += 1
+				except KeyError: d_count[bin] = 1
+		return d_count
+
+class MndLongLine:
+	keys = ['str1', 'chr1', 'pos1', 'frag1', 'str2', 'chr2', 'pos2', 'frag2',
+		'mapq1', 'cigar1', 'sequence1', 'mapq2', 'cigar2', 'sequence2', 'readname1', 'readname2']
+	types = [str, str, int, int, str, str, int, int, int, str, str, int, str, str, str, str]
+	def __init__(self, line):
+		self._line = line
+		self.line = line.strip().split()
+		self.set_attr()
+	def set_attr(self):
+		for key, type, value in zip(self.keys, self.types, self.line):
+			setattr(self, key, type(value))
+	def write(self, fout):
+		fout.write(self._line)
+

@@ -12,7 +12,10 @@ from REPcluster.Mcl import MclGroup
 from .small_tools import mkdirs, rmdirs, mk_ckp, check_ckp, test_s
 from .RunCmdsMP import logger, run_cmd
 from .sample_seqs import subsample_seqs
+from .multi_seqs import multi_seqs
 from .Trf import Trf, filter_trf_family, trf_map
+from .Bin import bin_bam
+from .Hic import count_links
 from .__version__ import version
 
 NCPU = multiprocessing.cpu_count()
@@ -105,35 +108,18 @@ class Pipeline:
 		
 		
 		# identify centromere tandem repeats
-		self.run_long()
-		
+		logger.info('##Step: Processing long reads data')
+#		self.run_long()
+		if not self.genome:
+			return
+		if self.hic:
+			logger.info('##Step: Processing Hi-C data')
+			self.run_hic()
+		if self.chip:
+			logger.info('##Step: Processing ChIP-seq data')
+			self.run_chip()
 		return
-		# use kmer-db for marix
-		db = self.tmpdir + '.kmer.db'
-		matrix = self.outdir + '.a2a.csv'
-		cmd = '''kmer-db build {opts} {input} {db} && \
-kmer-db all2all {db} {matrix} && \
-kmer-db distance {measure} -phylip-out {matrix}'''.format(
-			opts=opts, measure=self.measure, input=input, db=db, matrix=matrix)
-		run_cmd(cmd, log=True)
-		
-		dist = matrix + '.' + self.measure
-		network = self.outdir + '.a2a.filter.network'
-		with open(network, 'w') as fout:
-			matrix2list(dist, fout, cutoff=self.min_similarity, phylip=True)
-		
-		# cluster by mcl
-		logger.info('Cluster..')
-		cluster = self.outdir + '.a2a.filter.mcl'
-		cmd = 'mcl {input} --abc -I {inflation} -o {output}'.format(
-			inflation=self.inflation, input=network, output=cluster)
-		run_cmd(cmd, log=True)
-		
-		attr = self.outdir + '.a2a.filter.attr'
-		with open(attr, 'w') as fout:
-			assign_cid(cluster, fout, min_nodes=10)
-		
-		logger.info('Import `{}` and `{}` into Cytoscape for visualization'.format(network, attr))
+
 	def run_long(self):
 		# sample reads
 		if self.genome is not None:
@@ -166,7 +152,7 @@ kmer-db distance {measure} -phylip-out {matrix}'''.format(
 		cmd = 'REPclust {} {} {}'.format(trf_fa, self.clust_opts, opts)
 		run_cmd(cmd, log=True)
 		trfmcl = '{}/{}.mcl'.format(tmpdir, self.prefix)
-		trfseq = '{}/{}.fa'.format(tmpdir, self.prefix)
+		trfseq = '{}/{}.clust'.format(tmpdir, self.prefix)
 		
 		# filter trf family
 		logger.info('Filter tandem repeats as putive centromeric')
@@ -178,11 +164,24 @@ kmer-db distance {measure} -phylip-out {matrix}'''.format(
 			return trf_fam
 		# align with genome and count density
 		logger.info('Align with genome and count')
+		tmpdir = '{}blast'.format(self.tmpdir)
 		trf_count = self.outdir + 'trf.count'
+		trf_famx = '{}/{}.blastqry'.format(tmpdir, self.prefix)
+		with open(trf_famx, 'w') as fout:
+			multi_seqs(seqfiles=[trf_fam], outfile=fout, 
+						fold=1, min_length=50)
 		with open(trf_count, 'w') as fout:
-			trf_map(trf_fam, self.genome, fout, min_cov=0.9, ncpu=self.ncpu, window_size=10000)
+			trf_map(trf_famx, self.genome, fout, min_cov=0.8, ncpu=self.ncpu, window_size=10000)
 		
 		return trf_count
+	def run_chip(self):
+		chip_count = self.outdir + 'chip.count'
+		bin_bam(self.chip, chip_count, ncpu=self.ncpu, bin_size=10000)
+		return chip_count
+	def run_hic(self):
+		hic_count = self.outdir + 'hic.count'
+		with open(hic_count, 'w') as fout:
+			count_links(self.hic, fout, bin_size=10000)
 		
 def main():
 	args = makeArgparse()

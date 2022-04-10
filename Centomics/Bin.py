@@ -1,5 +1,6 @@
+import os
 from collections import OrderedDict
-
+from .RunCmdsMP import  run_cmd
 def bin_data(data, fout, bin_size=10000):
 	'''
 three format:
@@ -36,6 +37,7 @@ three format:
 
 	for bin, d_count in d_bin.items():
 		chrom, start = bin
+		start = start*bin_size
 		end = start + bin_size
 		values = [d_count.get(key, 0) for key in keys]
 		line = [chrom, start, end] + values
@@ -45,3 +47,17 @@ three format:
 def bin_line(chrom, pos, key=None, bin_size=1000):
 	bin = chrom, pos // bin_size
 	return bin
+
+def bin_bam(bamfile, outfile, bin_size=10000, opts='--ignoreDuplicates', ncpu=8):
+	import pysam
+	bam = pysam.Samfile(bamfile, 'rb')
+	try: bam.check_index()
+	except ValueError:
+		pysam.index(bamfile, '-@', str(ncpu))
+	bam.close()
+
+	opts += ' --numberOfProcessors {}'.format(ncpu)	
+	cmd = 'bamCoverage --bam {} --outFileName {} --outFileFormat bedgraph --binSize {} {}'.format(
+		bamfile, outfile, bin_size, opts)
+	run_cmd(cmd, log=True)
+	

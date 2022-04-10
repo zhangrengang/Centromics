@@ -84,4 +84,4 @@ class BlastOutRecord(object):
 		print('\t'.join(self.values), file=fout)
 	@property
 	def scov(self):
-		return 1.0*(self.send - self.sstart +1)/self.slen
+		return 1.0*(abs(self.send - self.sstart) +1)/self.slen
