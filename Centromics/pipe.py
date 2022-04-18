@@ -16,6 +16,7 @@ from .multi_seqs import multi_seqs
 from .Trf import Trf, filter_trf_family, trf_map
 from .Bin import bin_bam
 from .Hic import count_links
+from . import Circos
 from .__version__ import version
 
 NCPU = multiprocessing.cpu_count()
@@ -30,7 +31,7 @@ def makeArgparse():
 	group_in = parser.add_argument_group('Input', )
 	group_in.add_argument('-g', '-genome', default=None, metavar='FILE', 
 					dest='genome', 
-					help="Genome FASTA file [required]")
+					help="Genome FASTA file")
 	group_in.add_argument('-l', '-long', default=None, metavar='FILE', nargs='+', 
 					required=True, dest='long',
 					help="Long whole-genome-shotgun reads such as PacBio CCS/CLR or ONT reads \
@@ -67,6 +68,14 @@ in fastq or fasta format [required]")
 	group_tr.add_argument('-min_ratio', type=float, default=0.1, metavar='FLOAT',
 					 help="Minimum relative mass ratio to filter tandem repeats [default=%(default)s]")
 
+	# circos
+	group_circ = parser.add_argument_group('Circos', 'Options for circos plot')
+	group_circ.add_argument('-window_size', type=int, default=200000, metavar='INT',
+					help="Window size (bp) for circos plot [default=%(default)s]")
+	group_circ.add_argument("-chr_prefix", metavar='STR',
+					default='chr\d+',
+					help='match chromosome to only plot chromosomes [default="%(default)s"]')
+					
 	# others
 	group_other = parser.add_argument_group('Other options')
 	group_other.add_argument('-p', '-ncpu', type=int, default=NCPU, metavar='INT', dest='ncpu',
@@ -92,35 +101,55 @@ class Pipeline:
 		
 	def run(self):
 		# mkdir
-		self.outdir = os.path.realpath(self.outdir)
-		self.tmpdir = os.path.realpath(self.tmpdir)
+		self._outdir = self.outdir = os.path.realpath(self.outdir)
+		self._tmpdir = self.tmpdir = os.path.realpath(self.tmpdir)
 		mkdirs(self.outdir)
 		mkdirs(self.tmpdir)
 		self.outdir += '/'
 		self.tmpdir += '/'
-		self._outdir = self.outdir
+	#	if not self.prefix.endswith('.'):
+	#		self.prefix += '.'
 		if self.prefix is not None:
 			self.outdir = self.outdir + self.prefix
 			self.tmpdir = self.tmpdir + self.prefix
 
-		#logger.info('Build distance matrix..')
-		
-		
-		
 		# identify centromere tandem repeats
-		logger.info('##Step: Processing long reads data')
-#		self.run_long()
+		
+		tr_bed = self.run_long()
 		if not self.genome:
 			return
-		if self.hic:
-			logger.info('##Step: Processing Hi-C data')
-			self.run_hic()
-		if self.chip:
-			logger.info('##Step: Processing ChIP-seq data')
-			self.run_chip()
+		# hic
+		hic_bed = self.run_hic()
+		# chip
+		chip_bed = self.run_chip()
+		
+		self.run_circos(tr_bed=tr_bed, hic_bed=hic_bed, chip_bed=chip_bed, 
+			prefix=self.outdir + 'circos',
+			chr_prefix=self.chr_prefix, window_size=self.window_size)
+		
+		self.step_final()
+		logger.info('Pipeline completed.')
 		return
+		
+	def run_circos(self, *args, **kargs):
+		# circos
+		circos_dir = bindir+'/circos'
+		wkdir = self.outdir + 'circos' #self._outdir+'/circos'
+		rmdirs(wkdir)
+		try:
+			logger.info('Copy `{}` to `{}`'.format(circos_dir, self._outdir))
+			shutil.copytree(circos_dir, wkdir)
+		except FileExistsError:
+			pass
+		Circos.centomics_plot(self.genome, wkdir, *args, **kargs)
 
 	def run_long(self):
+		logger.info('##Step: Processing long reads data')
+		trf_count = self.outdir + 'trf.count'
+		ckp_file = self.mk_ckpfile(trf_count)
+		if check_ckp(ckp_file) and not self.overwrite:
+			return trf_count
+		
 		# sample reads
 		if self.genome is not None:
 			genome_size = sum([len(rc.seq) for rc in SeqIO.parse(self.genome, 'fasta')])
@@ -165,24 +194,48 @@ class Pipeline:
 		# align with genome and count density
 		logger.info('Align with genome and count')
 		tmpdir = '{}blast'.format(self.tmpdir)
-		trf_count = self.outdir + 'trf.count'
+		mkdirs(tmpdir)
 		trf_famx = '{}/{}.blastqry'.format(tmpdir, self.prefix)
 		with open(trf_famx, 'w') as fout:
 			multi_seqs(seqfiles=[trf_fam], outfile=fout, 
 						fold=1, min_length=50)
 		with open(trf_count, 'w') as fout:
 			trf_map(trf_famx, self.genome, fout, min_cov=0.8, ncpu=self.ncpu, window_size=10000)
-		
+		mk_ckp(ckp_file)
 		return trf_count
 	def run_chip(self):
+		if not self.chip:
+			return
+		logger.info('##Step: Processing ChIP-seq data')
 		chip_count = self.outdir + 'chip.count'
+		ckp_file = self.mk_ckpfile(chip_count)
+		if check_ckp(ckp_file) and not self.overwrite:
+			return chip_count
+			
 		bin_bam(self.chip, chip_count, ncpu=self.ncpu, bin_size=10000)
+		mk_ckp(ckp_file)
 		return chip_count
 	def run_hic(self):
+		if not self.hic:
+			return
+		logger.info('##Step: Processing Hi-C data')
 		hic_count = self.outdir + 'hic.count'
+		ckp_file = self.mk_ckpfile(hic_count)
+		if check_ckp(ckp_file) and not self.overwrite:
+			return hic_count
+			
 		with open(hic_count, 'w') as fout:
-			count_links(self.hic, fout, bin_size=10000)
-		
+			count_links(self.hic, fout, bin_size=10000, ncpu=self.ncpu)
+		mk_ckp(ckp_file)
+		return hic_count
+	def mk_ckpfile(self, file):
+		return '{}{}.ok'.format(self.tmpdir, os.path.basename(file))
+	def step_final(self):
+		# cleanup
+		if self.cleanup:
+			logger.info('Cleaning {}'.format(self._tmpdir))
+			rmdirs(self._tmpdir)
+			
 def main():
 	args = makeArgparse()
 	logger.info('Command: {}'.format(' '.join(sys.argv)))

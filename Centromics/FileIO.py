@@ -1,4 +1,5 @@
 from xopen import xopen as open
+from .RunCmdsMP import pool_func
 
 class Fastx:
 	def __init__(self, seqfile, seqfmt=None):
@@ -56,13 +57,21 @@ class FastxRecord:
 			print('>{}\n{}\n+\n{}'.format(self.description, self.seq, self.qual), file=fout)
 
 class Mnd:
-	def __init__(self, mnd):
+	def __init__(self, mnd, ncpu=4, method='imap', chunksize=1000):
 		self.mnd = mnd
+		self.ncpu = ncpu
+		self.method = method
+		self.chunksize  = chunksize
 	def __iter__(self):
 		return self._parse()
 	def _parse(self):
 		for line in open(self.mnd):
 			yield MndLongLine(line)
+#		iterable = open(self.mnd)
+#		jobs = pool_func(_parse_mnd_line, iterable, 
+#				processors=self.ncpu, method=self.method, chunksize=self.chunksize)
+#		for job in jobs:
+#			yield job
 	def count_links(self, diff_chr=True, bin_size=1000):
 		d_count = {}
 		for rc in self:
@@ -73,7 +82,8 @@ class Mnd:
 				try: d_count[bin] += 1
 				except KeyError: d_count[bin] = 1
 		return d_count
-
+def _parse_mnd_line(line):
+	return MndLongLine(line)
 class MndLongLine:
 	keys = ['str1', 'chr1', 'pos1', 'frag1', 'str2', 'chr2', 'pos2', 'frag2',
 		'mapq1', 'cigar1', 'sequence1', 'mapq2', 'cigar2', 'sequence2', 'readname1', 'readname2']
