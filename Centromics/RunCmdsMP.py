@@ -350,7 +350,7 @@ imap: True for imap'''
 #	logger.info('Joining Pool')
 	pool.join()
 
-def pool_run(cmd_list, processors=8, log=False, logger=None, **kargs):
+def pool_run(cmd_list, processors=8, log=True, logger=None, **kargs):
 	try: processors = int(processors)
 	except (TypeError,ValueError):
 		processors = multiprocessing.cpu_count()

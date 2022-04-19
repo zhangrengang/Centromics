@@ -19,7 +19,7 @@ def run_trf(inseq, nbins=20, tmpdir='tmp', tr_opts=OPT, window_size=1e6, overwri
 			seqfmt='fasta', suffix='')
 	cmds = []
 	for chunk_file in chunk_files:
-		cmd = 'cd {tmpdir} && trf {genome} {opts}; ls {genome}*.dat'.format(
+		cmd = 'cd {tmpdir} && trf {genome} {opts} > /dev/null; ls {genome}.*.dat'.format(
 				tmpdir=tmpdir, genome=os.path.realpath(chunk_file), opts=tr_opts)
 		cmds +=[cmd]
 	cmd_file = '{}/cmds.list'.format(tmpdir)
