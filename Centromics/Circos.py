@@ -366,7 +366,8 @@ def stack_bed(bedfile, outfile, window_size=100000, trim=True, high_tile=99, low
 	for bin, count in zip(bins, counts):
 		n = len(count)
 		count = limit_upper(count, uppers)
-		line = list(bin) + list(count)
+		count = ','.join(map(str, count))
+		line = list(bin) + [count]
 		line = map(str, line)
 		print('\t'.join(line), file=fout)
 	fout.close()

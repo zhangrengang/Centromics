@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # install dependency
-(cd REPcluster && python setup.py install)
+(cd REPcluster && python3 setup.py install)
 
 # install
-python setup.py install
+python3 setup.py install
 
