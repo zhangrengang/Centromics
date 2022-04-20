@@ -1,4 +1,4 @@
-import sys,os
+import sys,os, re
 import copy
 import argparse
 import shutil
@@ -107,8 +107,8 @@ class Pipeline:
 		mkdirs(self.tmpdir)
 		self.outdir += '/'
 		self.tmpdir += '/'
-	#	if not self.prefix.endswith('.'):
-	#		self.prefix += '.'
+		if not re.search(r'[\.\-_]$', self.prefix):
+			self.prefix += '.'
 		if self.prefix is not None:
 			self.outdir = self.outdir + self.prefix
 			self.tmpdir = self.tmpdir + self.prefix
@@ -147,12 +147,12 @@ class Pipeline:
 		logger.info('##Step: Processing long reads data')
 		trf_count = self.outdir + 'trf.count'
 		ckp_file = self.mk_ckpfile(trf_count)
-		if check_ckp(ckp_file) and not self.overwrite:
+		if check_ckp(ckp_file, overwrite=self.overwrite):
 			return trf_count
 		
 		# sample reads
 		if self.genome is not None:
-			genome_size = sum([len(rc.seq) for rc in SeqIO.parse(self.genome, 'fasta')])
+			genome_size = sum([len(rc.seq) for rc in SeqIO.parse(open(self.genome), 'fasta')])
 			logger.info('Subsample {}x reads from {}'.format(self.subsample_x, self.long))
 			L, N = self.subsample_x*genome_size, None
 		else:
@@ -179,7 +179,7 @@ class Pipeline:
 		if self.overwrite:
 			opts += ' -overwrite'
 		cmd = 'REPclust {} {} {}'.format(trf_fa, self.clust_opts, opts)
-		run_cmd(cmd, log=True)
+		run_cmd(cmd, log=True, fail_exit=True)
 		trfmcl = '{}/{}.mcl'.format(tmpdir, self.prefix)
 		trfseq = '{}/{}.clust'.format(tmpdir, self.prefix)
 		
@@ -209,7 +209,7 @@ class Pipeline:
 		logger.info('##Step: Processing ChIP-seq data')
 		chip_count = self.outdir + 'chip.count'
 		ckp_file = self.mk_ckpfile(chip_count)
-		if check_ckp(ckp_file) and not self.overwrite:
+		if check_ckp(ckp_file, overwrite=self.overwrite):
 			return chip_count
 			
 		bin_bam(self.chip, chip_count, ncpu=self.ncpu, bin_size=10000)
@@ -221,7 +221,7 @@ class Pipeline:
 		logger.info('##Step: Processing Hi-C data')
 		hic_count = self.outdir + 'hic.count'
 		ckp_file = self.mk_ckpfile(hic_count)
-		if check_ckp(ckp_file) and not self.overwrite:
+		if check_ckp(ckp_file, overwrite=self.overwrite):
 			return hic_count
 			
 		with open(hic_count, 'w') as fout:
