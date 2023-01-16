@@ -105,12 +105,13 @@ def filter_trf_family(trfseq, trfmcl, d_trf_len, fout, total_len=None, min_ratio
 		rc.description += ';ratio={:.3%}'.format(rc.ratio)
 		SeqIO.write(rc, fout, 'fasta')
 
-def trf_map(trfseq, genome, fout, min_cov=0.9, ncpu=4, window_size=10000, tmpdir='tmp/'):
+def trf_map(trfseq, genome, fout, min_cov=0.9, ncpu=4, window_size=10000, tmpdir='tmp/',
+		blast_opts='-task blastn-short -word_size 9 -dust no -soft_masking false'):
 	blast_outfmt = "'6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen sstrand'"
 	blast_out = trfseq + '.blastout'
 	# db=trfseq, query=genome
 	blast_out = blast(trfseq, genome, seqtype='nucl', blast_out=blast_out, blast_outfmt=blast_outfmt, 
-				blast_opts='-task blastn-short -word_size 11', ncpu=ncpu)
+				blast_opts=blast_opts, ncpu=ncpu)
 
 	logger.info('Parse blast out')	
 	data = []

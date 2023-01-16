@@ -1,11 +1,7 @@
-import sys,os, re
-import copy
+import sys, os, re
 import argparse
 import shutil
-import json
-import math
 import multiprocessing
-from collections import OrderedDict, Counter
 from xopen import xopen as open
 from Bio import SeqIO
 from REPcluster.Mcl import MclGroup
@@ -15,7 +11,7 @@ from .sample_seqs import subsample_seqs
 from .multi_seqs import multi_seqs
 from .Trf import Trf, filter_trf_family, trf_map
 from .Bin import bin_bam
-from .Hic import count_links
+from .Hic import count_obs
 from . import Circos
 from .__version__ import version
 
@@ -73,7 +69,7 @@ in fastq or fasta format [required]")
 	group_circ.add_argument('-window_size', type=int, default=200000, metavar='INT',
 					help="Window size (bp) for circos plot [default=%(default)s]")
 	group_circ.add_argument("-chr_prefix", metavar='STR',
-					default='chr\d+',
+					default='chr[\dXYZW]+',
 					help='match chromosome to only plot chromosomes [default="%(default)s"]')
 					
 	# others
@@ -123,7 +119,9 @@ class Pipeline:
 		# chip
 		chip_bed = self.run_chip()
 		
-		self.run_circos(tr_bed=tr_bed, hic_bed=hic_bed, chip_bed=chip_bed, 
+		self.run_circos(tr_bed=tr_bed, 
+			hic_bed=hic_bed, # inter & intra
+			chip_bed=chip_bed, 
 			prefix=self.outdir + 'circos',
 			chr_prefix=self.chr_prefix, window_size=self.window_size)
 		
@@ -145,6 +143,9 @@ class Pipeline:
 
 	def run_long(self):
 		logger.info('##Step: Processing long reads data')
+		if self.genome is not None:
+			self.d_seqL = {rc.id: len(rc.seq) for rc in SeqIO.parse(open(self.genome), 'fasta')}
+		
 		trf_count = self.outdir + 'trf.count'
 		ckp_file = self.mk_ckpfile(trf_count)
 		if check_ckp(ckp_file, overwrite=self.overwrite):
@@ -152,7 +153,8 @@ class Pipeline:
 		
 		# sample reads
 		if self.genome is not None:
-			genome_size = sum([len(rc.seq) for rc in SeqIO.parse(open(self.genome), 'fasta')])
+			genome_size = sum(self.d_seqL.values())
+			logger.info('Genome size: {:,} bp'.format(genome_size))
 			logger.info('Subsample {}x reads from {}'.format(self.subsample_x, self.long))
 			L, N = self.subsample_x*genome_size, None
 		else:
@@ -162,6 +164,7 @@ class Pipeline:
 		reads_fa = '{}sample.fa'.format(self.tmpdir)
 		with open(reads_fa, 'w') as fout:
 			total_num, total_len = subsample_seqs(self.long, fout, L=L, N=N)
+			logger.info('Subsampled {:,} reads({:,} bases)'.format(total_num, total_len))
 			
 		# run trf
 		logger.info('Run TRF to identify tandem repeats in reads')
@@ -219,15 +222,24 @@ class Pipeline:
 		if not self.hic:
 			return
 		logger.info('##Step: Processing Hi-C data')
-		hic_count = self.outdir + 'hic.count'
+		for res in (2500000, 1000000, 500000, 250000, 100000, 50000, 25000, 10000, 5000):
+			if res < self.window_size:
+				break
+		hic_count = self.outdir + 'hic.count.{}'.format(res)
+		
 		ckp_file = self.mk_ckpfile(hic_count)
-		if check_ckp(ckp_file, overwrite=self.overwrite):
-			return hic_count
+		ckp = check_ckp(ckp_file, overwrite=self.overwrite)
+		if ckp:
+			return ckp
 			
-		with open(hic_count, 'w') as fout:
-			count_links(self.hic, fout, bin_size=10000, ncpu=self.ncpu)
-		mk_ckp(ckp_file)
-		return hic_count
+		#with open(hic_count, 'w') as fout:
+		#	count_links(self.hic, fout, bin_size=10000, ncpu=self.ncpu)
+		
+		tmpdir = '{}hic'.format(self.tmpdir)
+		out1, out2 = count_obs(self.hic, chrLst=self.d_seqL.keys(), prefix=hic_count, tmpdir=tmpdir,
+			bin_size=res, ncpu=self.ncpu, overwrite=self.overwrite)
+	#	mk_ckp(ckp_file, out1, out2)
+		return out1, out2
 	def mk_ckpfile(self, file):
 		return '{}{}.ok'.format(self.tmpdir, os.path.basename(file))
 	def step_final(self):

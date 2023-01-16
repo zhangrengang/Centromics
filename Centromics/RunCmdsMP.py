@@ -25,11 +25,11 @@ try:
 	GRID = True
 	from tempfile import NamedTemporaryFile
 except (RuntimeError,ImportError,AttributeError) as e:
-	if "DRMAA_LIBRARY_PATH" in format(e):
-		logger.warning('Grid computing is not available because DRMAA not configured properly: {}'.format(e))
-	else:
-		logger.warning('Grid computing is not available because DRMAA not installed: {}'.format(e))
-		logger.info('No DRMAA, Switching to local/cluster mode.')
+#	if "DRMAA_LIBRARY_PATH" in format(e):
+#		logger.warning('Grid computing is not available because DRMAA not configured properly: {}'.format(e))
+#	else:
+#		logger.warning('Grid computing is not available because DRMAA not installed: {}'.format(e))
+#		logger.info('No DRMAA, Switching to local/cluster mode.')
 	GRID = False
 
 __version__ = '1.1'
@@ -280,7 +280,7 @@ def file2list(cmd_file, sep="\n"):
 			cmd_list = f.read().split(sep)
 	return [cmd for cmd in cmd_list if cmd.strip()]
 
-def run_cmd(cmd, log=False, logger=None, fail_exit=False):
+def run_cmd(cmd, log=False, logger=None, fail_exit=True):
 	if log and logger is None:
 		logger = LOGGER
 	if logger is not None:

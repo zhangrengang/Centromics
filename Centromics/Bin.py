@@ -59,5 +59,5 @@ def bin_bam(bamfile, outfile, bin_size=10000, opts='--ignoreDuplicates', ncpu=8)
 	opts += ' --numberOfProcessors {}'.format(ncpu)	
 	cmd = 'bamCoverage --bam {} --outFileName {} --outFileFormat bedgraph --binSize {} {}'.format(
 		bamfile, outfile, bin_size, opts)
-	run_cmd(cmd, log=True)
+	run_cmd(cmd, log=True, fail_exit=True)
 	

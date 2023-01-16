@@ -42,7 +42,8 @@ class FastxRecord:
 			self.seq = ''.join(lines[1:]).rstrip()
 		elif seqfmt == 'fastq':
 			self.seq = lines[1].rstrip()
-			self.qual = lines[3].rstrip()
+			try: self.qual = lines[3].rstrip()
+			except IndexError: self.qual = ''
 	@property
 	def id(self):
 		return self.description.split()[0]

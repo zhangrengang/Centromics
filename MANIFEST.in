@@ -1,3 +1,2 @@
-include Centromics/circos/*
-include Centromics/circos/*/*
-include Centromics/circos/*/*/*
+graft Centromics/circos
+graft Centromics/bin
