@@ -115,20 +115,23 @@ def trf_map(trfseq, genome, fout, min_cov=0.9, ncpu=4, window_size=10000, tmpdir
 
 	logger.info('Parse blast out')	
 	data = []
+	trfids = set([])
 	for rc in BlastOut(blast_out, blast_outfmt):
 #		print(dir(rc))
 		if rc.scov < min_cov:
 			continue
 		line = (rc.qseqid, rc.qstart, rc.sseqid)
 		data += [line]
+		trfids.add(rc.sseqid)
 
-	# sort
+	# sort: same order as trf seqfile
 	seqids = {rc.id:i for i, rc in enumerate(SeqIO.parse(trfseq, 'fasta'))}
 	data = sorted(data, key=lambda x: (x[0], seqids[x[2]], x[1]))
+	trfids = sorted(trfids, key=lambda x: seqids[x])
 
 	# bin
 	bin_data(data, fout, bin_size=window_size)
-	
+	return trfids
 	
 def plot_trf(lens, ratios, outfig, xlab='Repeat length', ylab='Genomic ratio (%)'):
 	import matplotlib.pyplot as plt

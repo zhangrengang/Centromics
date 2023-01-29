@@ -111,7 +111,7 @@ class Pipeline:
 
 		# identify centromere tandem repeats
 		
-		tr_bed = self.run_long()
+		tr_bed, tr_labels = self.run_long()
 		if not self.genome:
 			return
 		# hic
@@ -119,7 +119,7 @@ class Pipeline:
 		# chip
 		chip_bed = self.run_chip()
 		
-		self.run_circos(tr_bed=tr_bed, 
+		self.run_circos(tr_bed=tr_bed, tr_labels=tr_labels,
 			hic_bed=hic_bed, # inter & intra
 			chip_bed=chip_bed, 
 			prefix=self.outdir + 'circos',
@@ -141,6 +141,9 @@ class Pipeline:
 			pass
 		Circos.centomics_plot(self.genome, wkdir, *args, **kargs)
 
+	def get_trf_ids(self, trf_count):
+		for line in open(trf_count):
+			return line.strip().split()[3:]
 	def run_long(self):
 		logger.info('##Step: Processing long reads data')
 		if self.genome is not None:
@@ -149,7 +152,7 @@ class Pipeline:
 		trf_count = self.outdir + 'trf.count'
 		ckp_file = self.mk_ckpfile(trf_count)
 		if check_ckp(ckp_file, overwrite=self.overwrite):
-			return trf_count
+			return trf_count, self.get_trf_ids(trf_count)
 		
 		# sample reads
 		if self.genome is not None:
@@ -193,7 +196,7 @@ class Pipeline:
 			filter_trf_family(trfseq, trfmcl, d_trf_len, fout, total_len=total_len, min_ratio=self.min_ratio)
 			
 		if self.genome is None:
-			return trf_fam
+			return trf_fam, None
 		# align with genome and count density
 		logger.info('Align with genome and count')
 		tmpdir = '{}blast'.format(self.tmpdir)
@@ -203,9 +206,10 @@ class Pipeline:
 			multi_seqs(seqfiles=[trf_fam], outfile=fout, 
 						fold=1, min_length=50)
 		with open(trf_count, 'w') as fout:
-			trf_map(trf_famx, self.genome, fout, min_cov=0.8, ncpu=self.ncpu, window_size=10000)
+			trfids = trf_map(trf_famx, self.genome, fout, min_cov=0.8, ncpu=self.ncpu, window_size=10000)
 		mk_ckp(ckp_file)
-		return trf_count
+		return trf_count, trfids
+
 	def run_chip(self):
 		if not self.chip:
 			return
