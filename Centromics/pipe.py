@@ -12,6 +12,7 @@ from .multi_seqs import multi_seqs
 from .Trf import Trf, filter_trf_family, trf_map
 from .Bin import bin_bam
 from .Hic import count_obs
+from .Peaks import find_peaks
 from . import Circos
 from .__version__ import version
 
@@ -109,16 +110,25 @@ class Pipeline:
 			self.outdir = self.outdir + self.prefix
 			self.tmpdir = self.tmpdir + self.prefix
 
+		d_beds = {}
 		# identify centromere tandem repeats
-		
 		tr_bed, tr_labels = self.run_long()
+		d_beds['TR'] = tr_bed
 		if not self.genome:
 			return
 		# hic
 		hic_bed = self.run_hic()
+		d_beds['HiC'] = hic_bed[0]
 		# chip
 		chip_bed = self.run_chip()
-		
+		d_beds['ChIP'] = chip_bed
+
+		# out peak
+		outbed = self.outdir + 'candidate_peaks.bed'
+		with open(outbed, 'w') as fout:
+			find_peaks(d_beds, fout, bin_size=self.window_size)
+
+		# circos
 		self.run_circos(tr_bed=tr_bed, tr_labels=tr_labels,
 			hic_bed=hic_bed, # inter & intra
 			chip_bed=chip_bed, 
@@ -242,7 +252,7 @@ class Pipeline:
 		tmpdir = '{}hic'.format(self.tmpdir)
 		out1, out2 = count_obs(self.hic, chrLst=self.d_seqL.keys(), prefix=hic_count, tmpdir=tmpdir,
 			bin_size=res, ncpu=self.ncpu, overwrite=self.overwrite)
-	#	mk_ckp(ckp_file, out1, out2)
+		mk_ckp(ckp_file, out1, out2)
 		return out1, out2
 	def mk_ckpfile(self, file):
 		return '{}{}.ok'.format(self.tmpdir, os.path.basename(file))
