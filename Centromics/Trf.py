@@ -120,7 +120,7 @@ def trf_map(trfseq, genome, fout, min_cov=0.9, ncpu=4, window_size=10000, tmpdir
 #		print(dir(rc))
 		if rc.scov < min_cov:
 			continue
-		line = (rc.qseqid, rc.qstart, rc.sseqid)
+		line = (rc.qseqid, rc.qstart, rc.sseqid, rc.qend-rc.qstart+1)
 		data += [line]
 		trfids.add(rc.sseqid)
 
