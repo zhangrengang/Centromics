@@ -141,6 +141,7 @@ def plot_trf(lens, ratios, outfig, xlab='Repeat length', ylab='Genomic ratio (%)
 	plt.xlabel(xlab)
 	plt.ylabel(ylab)
 	plt.savefig(outfig)
+	plt.close()
 
 def trf_plot(inseq, inbed='', outbed=sys.stdout, nbins=64, window_size=20000, min_percent=5, min_copy=10, min_unit_size=5):
 	seqs = []

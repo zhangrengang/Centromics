@@ -279,10 +279,13 @@ class CirclesLegend:
 	def plot(self, outfig):
 		import matplotlib.pyplot as plt
 		n = len(self.legends)
+		plt.figure()
+
 		for i, legend in enumerate(self.legends):
 			ax = plt.subplot(n, 1, i+1)
 			legend.plot(ax)
 		plt.savefig(outfig, bbox_inches='tight', transparent=True)
+		plt.close()
 		
 def centomics_plot(genome, wddir='circos', tr_bed='', tr_labels='',
 		hic_bed='', chip_bed='', 
