@@ -48,7 +48,7 @@ in fastq or fasta format [required]")
 					help="Temporary directory [default=%(default)s]")
 	# tandem repeat
 	group_tr = parser.add_argument_group('Kmer matrix',)
-	group_tr.add_argument('-subsample_x', type=int, default=10, metavar='INT',
+	group_tr.add_argument('-subsample_x', type=int, default=5, metavar='INT',
 					 help="Subsample long reads up to X depth (prior to `-subsample_n`) [default=%(default)s]")
 	group_tr.add_argument('-subsample_n', type=int, default=100000, metavar='INT',
 					 help="Subsample long reads up to N reads [default=%(default)s]")
@@ -118,7 +118,8 @@ class Pipeline:
 			return
 		# hic
 		hic_bed = self.run_hic()
-		d_beds['HiC'] = hic_bed[0]
+		try: d_beds['HiC'] = hic_bed[0]
+		except TypeError: pass
 		# chip
 		chip_bed = self.run_chip()
 		d_beds['ChIP'] = chip_bed

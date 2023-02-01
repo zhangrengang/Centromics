@@ -59,7 +59,7 @@ def find_peaks(d_bdgfiles, outbed, **kargs):
 		d_regions = CustomBdgParser(bdgfile).parse()
 		for key, d_chrs in d_regions.items():
 			_from = '{}-{}'.format(label, key) if key else label
-			print(_from)
+#			print(_from)
 			for chrom, regions in d_chrs.items():
 				peaks = findPeak(Regions(regions), **kargs)
 				for chrom, start, end, pvalue,svalue in peaks:
@@ -82,7 +82,7 @@ def findPeak(regions, upper=0.6, lower=0.2, lower_tile=10, max_dist=1, min_nsite
 #	upthd = _min + diff*upper
 	upthd = _max*upper
 	lowthd = _min + diff*lower
-	print(_max, _min, __min, regions.percentile(lower_tile), upthd, lowthd)
+#	print(_max, _min, __min, regions.percentile(lower_tile), upthd, lowthd)
 	up_regions = set([]) # [site1, site2]
 	for rc in regions:
 		if rc.value >= upthd:

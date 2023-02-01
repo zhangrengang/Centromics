@@ -15,6 +15,6 @@ cd example_data
 centromics -l hifi.fq.gz -g ref.fa
 
 # long reads + HiC data + ChIP data
-centromics -l hifi.fq.gz -g ref.fa -pre hifi -chip chip.bam -hic merged_nodups.txt.gz
-centromics -l ont*.fq.gz -g ref.fa -pre ont  -chip chip.bam -hic merged_nodups.txt.gz
+centromics -l hifi.fq.gz -g ref.fa -pre hifi -chip chip.bam -hic merged_nodups.hic
+centromics -l ont*.fq.gz -g ref.fa -pre ont  -chip chip.bam -hic merged_nodups.hic
 ```

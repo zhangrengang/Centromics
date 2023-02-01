@@ -263,6 +263,7 @@ class CircleLegend:
 	def plot(self, ax):
 		for clade, color in zip(self.labels, self.colors):
 			ax.barh(0, 0, height=0, color=color, left=0, align='center', label=clade)
+		ncols = len(self.labels)//5 + 1
 		ax.legend(loc='upper left',fancybox=False, frameon=False)
 		ax.xaxis.set_tick_params(length=0)
 		ax.spines['right'].set_color('none')
