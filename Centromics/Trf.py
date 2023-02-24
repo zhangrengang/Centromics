@@ -130,7 +130,7 @@ def trf_map(trfseq, genome, fout, min_cov=0.9, ncpu=4, window_size=10000, tmpdir
 	trfids = sorted(trfids, key=lambda x: seqids[x])
 
 	# bin
-	bin_data(data, fout, bin_size=window_size)
+	bin_data(data, fout, bin_size=window_size, keys=trfids)
 	return trfids
 	
 def plot_trf(lens, ratios, outfig, xlab='Repeat length', ylab='Genomic ratio (%)'):

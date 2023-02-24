@@ -1,7 +1,7 @@
 import os
 from collections import OrderedDict
 from .RunCmdsMP import  run_cmd
-def bin_data(data, fout, bin_size=10000):
+def bin_data(data, fout, bin_size=10000, keys=None):
 	'''
 three format:
 1. chrom, pos, 
@@ -30,8 +30,8 @@ three format:
 		# record
 		try: d_keys[key] += count
 		except KeyError: d_keys[key] = count
-
-	keys = list(d_keys.keys())
+	if keys is None:
+		keys = list(d_keys.keys())
 	line = ['#chrom', 'start', 'end'] + keys
 	fout.write('\t'.join(line)+'\n')
 
