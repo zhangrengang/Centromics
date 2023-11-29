@@ -92,6 +92,7 @@ def get_version(value):
 
 def get_hex_colors(n):
 	import matplotlib.pyplot as plt
+	plt.switch_backend('agg')
 	import matplotlib.colors as colors
 	import matplotlib.cm as cmx
 	values = list(range(n))
@@ -168,6 +169,13 @@ def test_f(xfile):	#"test -f"
 
 def test_s(xfile):	#"test -s"
 	return os.path.exists(xfile) and os.path.getsize(xfile)>0
+def test_r(xfile): # readable
+	try: 
+		f = open(xfile)
+		f.close()
+		return True
+	except:
+		return False
 def is_complete_cds(Seq, translate_table=1):
 	'''A Bio.Seq object (CDS) is complete (both start and end codons present)?'''
 	try:

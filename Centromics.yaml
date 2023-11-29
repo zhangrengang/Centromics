@@ -158,6 +158,7 @@ dependencies:
   - pillow=9.1.0
   - pip=22.0.4
   - plotly=5.7.0
+  - pp=1.6.4.4
   - psutil=5.9.0
   - pthread-stubs=0.4
   - py2bit=0.3.0

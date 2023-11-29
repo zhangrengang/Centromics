@@ -280,6 +280,7 @@ class CirclesLegend:
 		self.legends = legends
 	def plot(self, outfig):
 		import matplotlib.pyplot as plt
+		plt.switch_backend('agg')
 		n = len(self.legends)
 		plt.figure()
 
@@ -396,7 +397,8 @@ def centomics_plot(genome, wddir='circos', tr_bed='', tr_labels='',
 		dstfig = '{}.{}'.format(prefix, figfmt)
 		try: os.remove(dstfig)
 		except FileNotFoundError: pass
-		os.link(figfile, dstfig)
+		try: os.link(figfile, dstfig)
+		except PermissionError: shutil.move(figfile, dstfig)
 	
 	# legend
 	lefig = '{}_legend.pdf'.format(prefix)
@@ -445,14 +447,15 @@ def limit_upper(count, uppers):
 	return [min(c,u) for c,u in zip(count, uppers)]
 	
 # subphaser
-def circos_plot(genomes, wddir='circos', bedfile='', 
+def circos_plot(genomes, wddir='circos', bedfile='', sg_color=None,
 		sg_lines=[], d_sg={}, prefix='circos', figfmt='pdf',
 		ltr_lines=[], enrich_ltr_bedlines=[[]],	# list
 		pafs=[], paf_offsets={}, min_block=10000, # blocks
 		window_size=100000):
-	from .colors import colors_rgb
+#	from .colors import colors_rgb
 	from .RunCmdsMP import run_cmd
 	from .small_tools import mkdirs
+	colors_rgb = sg_color.colors_rgb
 	sgs = sorted(set(d_sg.values()))
 	if len(sgs) > len(colors_rgb):
 		colors_rgb = colors_rgb * (len(sgs)//len(colors_rgb) + 1)
