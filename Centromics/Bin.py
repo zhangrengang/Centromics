@@ -48,7 +48,19 @@ def bin_line(chrom, pos, key=None, bin_size=1000):
 	bin = chrom, pos // bin_size
 	return bin
 
-def bin_bam(bamfile, outfile, bin_size=10000, opts='--ignoreDuplicates', ncpu=8):
+def bin_bam(bamfile, outfile, input_bam=None, bin_size=10000, opts='--ignoreDuplicates', ncpu=8):
+	index_bam(bamfile)
+	opts += ' --numberOfProcessors {}'.format(ncpu)	
+	opts += '--outFileName {} --outFileFormat bedgraph --binSize {}'.format(outfile, bin_size)
+	if input_bam is None:
+		cmd = 'bamCoverage --bam {}  {}'.format(
+			bamfile,  opts)
+	else:
+		index_bam(input_bam)
+		cmd = 'bamCompare -b1 {} -b2 {} {}'.format(bamfile, input_bam, opts)
+	run_cmd(cmd, log=True, fail_exit=True)
+	
+def index_bam(bamfile):
 	import pysam
 	bam = pysam.Samfile(bamfile, 'rb')
 	try: bam.check_index()
@@ -56,8 +68,3 @@ def bin_bam(bamfile, outfile, bin_size=10000, opts='--ignoreDuplicates', ncpu=8)
 		pysam.index(bamfile, '-@', str(ncpu))
 	bam.close()
 
-	opts += ' --numberOfProcessors {}'.format(ncpu)	
-	cmd = 'bamCoverage --bam {} --outFileName {} --outFileFormat bedgraph --binSize {} {}'.format(
-		bamfile, outfile, bin_size, opts)
-	run_cmd(cmd, log=True, fail_exit=True)
-	

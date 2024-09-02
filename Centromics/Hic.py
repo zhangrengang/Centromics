@@ -12,8 +12,8 @@ def count_links(mnd, fout, bin_size=10000, ncpu=8):
 
 def count_obs(inHic, chrLst, prefix='pre', tmpdir='tmp', norm='NONE', bin_size=10000, ncpu=8, overwrite=1):
 	out1, out2 = prefix + '.inter_chr', prefix + '.intra_chr'
-	cmd_opts = {'tc_tasks': ncpu, 'mode': 'local', 'retry': 2, 'cont': overwrite,}
+	cmd_opts = {'tc_tasks': ncpu, 'mode': 'local', 'retry': 2, 'cont': overwrite, 'fail_exit':False}
 	with open(out1, 'w') as fout1, open(out2, 'w') as fout2:
-		hic2signals(fout1, fout2, 
+		hic2signals(fout1, fout2, overwrite=overwrite,
 			inHic=inHic, inChrLst=chrLst, prefix=tmpdir, res=bin_size, norm=norm, cmd_opts=cmd_opts)
 	return out1, out2

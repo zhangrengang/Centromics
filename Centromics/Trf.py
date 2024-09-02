@@ -3,7 +3,7 @@ from collections import OrderedDict
 from Bio import SeqIO
 from .Repeat import TRF
 from .split_records import split_fastx_by_chunk_num, bin_split_fastx_by_chunk_num
-from .small_tools import mkdirs
+from .small_tools import mkdirs, test_s
 from .RunCmdsMP import run_job, logger, run_cmd
 from .Blast import blast,BlastOut
 from .Bin import bin_data
@@ -105,12 +105,13 @@ def filter_trf_family(trfseq, trfmcl, d_trf_len, fout, total_len=None, min_ratio
 		rc.description += ';ratio={:.3%}'.format(rc.ratio)
 		SeqIO.write(rc, fout, 'fasta')
 
-def trf_map(trfseq, genome, fout, min_cov=0.9, ncpu=4, window_size=10000, tmpdir='tmp/',
+def trf_map(trfseq, genome, fout, min_cov=0.9, ncpu=4, window_size=10000, tmpdir='tmp/', overwrite=1, 
 		blast_opts='-task blastn-short -word_size 9 -dust no -soft_masking false'):
 	blast_outfmt = "'6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen sstrand'"
 	blast_out = trfseq + '.blastout'
 	# db=trfseq, query=genome
-	blast_out = blast(trfseq, genome, seqtype='nucl', blast_out=blast_out, blast_outfmt=blast_outfmt, 
+	if not test_s(blast_out) or overwrite:
+		blast_out = blast(trfseq, genome, seqtype='nucl', blast_out=blast_out, blast_outfmt=blast_outfmt, 
 				blast_opts=blast_opts, ncpu=ncpu)
 
 	logger.info('Parse blast out')	

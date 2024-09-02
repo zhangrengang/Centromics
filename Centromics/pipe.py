@@ -5,7 +5,7 @@ import multiprocessing
 from xopen import xopen as open
 from Bio import SeqIO
 from REPcluster.Mcl import MclGroup
-from .small_tools import mkdirs, rmdirs, mk_ckp, check_ckp, test_s
+from .small_tools import mkdirs, rmdirs, mk_ckp, check_ckp, test_s, get_suffix
 from .RunCmdsMP import logger, run_cmd
 from .sample_seqs import subsample_seqs
 from .multi_seqs import multi_seqs
@@ -36,8 +36,9 @@ in fastq or fasta format [required]")
 	group_in.add_argument('-hic', default=None, metavar='FILE', 
 					help="Hi-C data alignments by juicer")
 	group_in.add_argument('-chip', default=None, metavar='FILE', 
-					help="ChIP data alignments in bam format (sorted)")
-					
+					help="ChIP data alignments in bam format (sorted) or in BedGraph format")
+	group_in.add_argument('-chip_input', default=None, metavar='FILE',
+					help="Input data alignments in bam format (sorted)")	
 	# output
 	group_out = parser.add_argument_group('Output')
 	group_out.add_argument('-pre', '-prefix', default='centomics', dest='prefix', metavar='STR',
@@ -158,13 +159,22 @@ class Pipeline:
 	def run_long(self):
 		logger.info('##Step: Processing long reads data')
 		if self.genome is not None:
+			logger.info('Loading {}'.format(self.genome))
 			self.d_seqL = {rc.id: len(rc.seq) for rc in SeqIO.parse(open(self.genome), 'fasta')}
 		
 		trf_count = self.outdir + 'trf.count'
 		ckp_file = self.mk_ckpfile(trf_count)
 		if check_ckp(ckp_file, overwrite=self.overwrite):
+			if not test_s(trf_count):
+				tmpdir = '{}blast'.format(self.tmpdir)
+				trf_famx = '{}/{}.blastqry'.format(tmpdir, self.prefix)
+				with open(trf_count, 'w') as fout:
+					trfids = trf_map(trf_famx, self.genome, fout, min_cov=0.8, ncpu=self.ncpu, window_size=10000, overwrite=0)
 			return trf_count, self.get_trf_ids(trf_count)
-		
+
+#		if self.genome is not None:
+#			logger.info('Loading {}'.format(self.genome))
+#			self.d_seqL = {rc.id: len(rc.seq) for rc in SeqIO.parse(open(self.genome), 'fasta')}	
 		# sample reads
 		if self.genome is not None:
 			genome_size = sum(self.d_seqL.values())
@@ -225,12 +235,15 @@ class Pipeline:
 		if not self.chip:
 			return
 		logger.info('##Step: Processing ChIP-seq data')
+		if get_suffix(self.chip).lower() in {'.bdg', '.bedgraph'}:
+			return self.chip
+
 		chip_count = self.outdir + 'chip.count'
 		ckp_file = self.mk_ckpfile(chip_count)
 		if check_ckp(ckp_file, overwrite=self.overwrite):
 			return chip_count
 			
-		bin_bam(self.chip, chip_count, ncpu=self.ncpu, bin_size=10000)
+		bin_bam(self.chip, chip_count, input_bam=self.chip_input, ncpu=self.ncpu, bin_size=10000)
 		mk_ckp(ckp_file)
 		return chip_count
 	def run_hic(self):
@@ -238,7 +251,7 @@ class Pipeline:
 			return
 		logger.info('##Step: Processing Hi-C data')
 		for res in (2500000, 1000000, 500000, 250000, 100000, 50000, 25000, 10000, 5000):
-			if res < self.window_size:
+			if res <= self.window_size:
 				break
 		hic_count = self.outdir + 'hic.count.{}'.format(res)
 		

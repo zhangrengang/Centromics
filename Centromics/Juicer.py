@@ -3,21 +3,24 @@ import os
 import sys
 import itertools
 import collections
-from .small_tools import mkdirs
+from .small_tools import mkdirs, test_s
 from .RunCmdsMP import run_job, logger
 
 bindir = os.path.dirname(os.path.realpath(__file__))
 juicebox_bin = f'{bindir}/bin/juicebox_tools.jar'
 
-def run_juicerbox(inHic, chr_combs, outdir='matrix', res=10000, norm="NONE", cmd_opts={}):
+def run_juicerbox(inHic, chr_combs, outdir='matrix', res=10000, norm="NONE", cmd_opts={}, overwrite=0):
 	mkdirs(outdir)
 	d_files = {}
 	cmds = []
 	for chr1, chr2 in chr_combs:
 		outfile = '%s/%s-%s.%s.mat' % (outdir, chr1, chr2, res)
+		d_files[(chr1, chr2)] = outfile
+
+		if not overwrite and test_s(outfile):
+			continue
 		cmd = f'java -jar {juicebox_bin} dump observed {norm} {inHic} {chr1} {chr2} BP {res} {outfile}' 
 		#print(cmd)
-		d_files[(chr1, chr2)] = outfile
 		cmds += [cmd]
 	cmd_file = outdir.rstrip('/') + f'{res}.sh'
 	run_job(cmd_file, cmd_list=cmds, **cmd_opts)
@@ -73,7 +76,7 @@ def run_centrion(outbed, outmatix, outfig, res=10000):
 	cmd = 'plot_finding_centromeres.py %s %s %s %s 2> %s.err' % (outbed, outmatix, outfig, res, outfig)
 	print(cmd)
 	os.system(cmd)
-def hic2matrix(inHic=None, inChrLst=None, prefix=None, res=100000, figfmt='pdf', self=True, cent=False, norm="NONE", cmd_opts={}):
+def hic2matrix(inHic=None, inChrLst=None, prefix=None, res=100000, figfmt='pdf', self=True, cent=False, norm="NONE", overwrite=0, cmd_opts={}):
 	if self:
 		combinations = itertools.combinations_with_replacement
 	else:
@@ -87,7 +90,7 @@ def hic2matrix(inHic=None, inChrLst=None, prefix=None, res=100000, figfmt='pdf',
 		ChrLst = inChrLst
 	chr_combs = list(combinations(ChrLst, 2))
 	outdir = '%s.matrix' % (prefix, )
-	d_files = run_juicerbox(inHic, chr_combs, outdir=outdir, res=res, norm=norm, cmd_opts=cmd_opts)
+	d_files = run_juicerbox(inHic, chr_combs, outdir=outdir, res=res, norm=norm, cmd_opts=cmd_opts, overwrite=overwrite)
 	if cent:
 		d_id = parse_chr(inChrLst, res=res)
 		juicer2centrome(chr_combs, outbed, outmatix, ChrLst, d_id, outdir=outdir, res=res)
@@ -109,6 +112,10 @@ def count_diff_chrom(d_files):
 	for (chr1, chr2), matfile in d_files.items():
 		if chr1 == chr2: 
 			continue
+		if not test_s(matfile):
+			logger.warn('{} not exists'.format(matfile))
+			continue
+		logger.info('parsing {}'.format(matfile))
 		for (bin1, bin2, observed) in JuicerMatrix(matfile):
 			for chr, bin in ([chr1, bin1], [chr2, bin2]):
 				key = (chr, bin)
@@ -119,6 +126,9 @@ def count_same_chrom(d_files, distance):
 	d_count = {}
 	for (chr1, chr2), matfile in d_files.items():
 		if chr1 != chr2:
+			continue
+		if not test_s(matfile):
+			logger.warn('{} not exists'.format(matfile))
 			continue
 		lines = list(JuicerMatrix(matfile))
 		bins = sorted(set([b1 for b1, *_ in lines]))
