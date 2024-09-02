@@ -238,7 +238,7 @@ class Pipeline:
 		if get_suffix(self.chip).lower() in {'.bdg', '.bedgraph'}:
 			return self.chip
 
-		chip_count = self.outdir + 'chip.count'
+		chip_count = self.outdir + 'chip.bdg'
 		ckp_file = self.mk_ckpfile(chip_count)
 		if check_ckp(ckp_file, overwrite=self.overwrite):
 			return chip_count
