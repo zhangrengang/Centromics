@@ -235,7 +235,7 @@ class Pipeline:
 		if not self.chip:
 			return
 		logger.info('##Step: Processing ChIP-seq data')
-		if get_suffix(self.chip).lower() in {'.bdg', '.bedgraph'}:
+		if get_suffix(self.chip).lower() not in {'bam'}: #in {'.bdg', '.bedgraph'}:
 			return self.chip
 
 		chip_count = self.outdir + 'chip.bdg'
