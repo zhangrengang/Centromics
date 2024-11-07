@@ -16,7 +16,7 @@ from .Peaks import find_peaks
 from . import Circos
 from .__version__ import version
 
-NCPU = max(multiprocessing.cpu_count()/3, 4)
+NCPU = int(max(len(os.sched_getaffinity(0))/3, 4))
 bindir = os.path.dirname(os.path.realpath(__file__))
 
 def makeArgparse():
