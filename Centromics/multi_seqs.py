@@ -18,9 +18,11 @@ def multi_seqs(seqfiles=None, seqlist=None, outfile=sys.stdout, fold=2, min_leng
 	if seqlist is not None:
 		seqfiles += list([line.strip().split()[0] for line in open(seqlist)])
 	d_seqs = {}
+	d_lens = {}
 	for seqfile in seqfiles:
 		for rc in SeqIO.parse(open(seqfile), 'fasta'):
 			d_seqs[rc.id] = rc.seq
+			d_lens[rc.id] = len(rc.seq)
 			if len(rc.seq) < min_length/fold:
 				_fold = int(math.ceil(1.0*min_length/len(rc.seq)))
 				xfold = max(fold, _fold)
@@ -29,7 +31,7 @@ def multi_seqs(seqfiles=None, seqlist=None, outfile=sys.stdout, fold=2, min_leng
 			rc.seq = Seq(''.join([str(rc.seq)] * xfold))
 			rc.description = rc.id
 			SeqIO.write(rc, outfile, 'fasta')
-	return d_seqs
+	return d_seqs, d_lens
 
 if __name__ == '__main__':
 	main()

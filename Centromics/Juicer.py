@@ -3,6 +3,7 @@ import os
 import sys
 import itertools
 import collections
+import math
 from .small_tools import mkdirs, test_s
 from .RunCmdsMP import run_job, logger
 
@@ -96,13 +97,14 @@ def hic2matrix(inHic=None, inChrLst=None, prefix=None, res=100000, figfmt='pdf',
 		juicer2centrome(chr_combs, outbed, outmatix, ChrLst, d_id, outdir=outdir, res=res)
 		run_centrion(outbed, outmatix, outfig, res=res) # res not > 40k # reviced: res=res0, not applied
 	return d_files
-def hic2signals(fout1, fout2, res=1000, **kargs):
+def hic2signals(fout1, fout2, res=1000, log=2, **kargs):
 	d_files = hic2matrix(res=res, **kargs)
 	logger.info('Count inter and intra-chromosomal signals')
 	distance = 20*res
 	for d_count, fout in [(count_diff_chrom(d_files), fout1), (count_same_chrom(d_files, distance), fout2)]:
 		for (chr, bin), count in sorted(d_count.items()):
-			signal = sum(count) / len(count) if isinstance(count, list) else count # normalize
+			signal = sum(count) if isinstance(count, list) else count # normalize
+			signal = math.log(signal+1, log)
 			line = [chr, bin, bin+res, signal]
 			line = map(str, line)
 			print('\t'.join(line), file=fout)
