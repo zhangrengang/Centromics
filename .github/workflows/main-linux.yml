@@ -24,21 +24,18 @@ jobs:
     - name: Setup conda
       uses: s-weigand/setup-conda@v1.0.5
       with:
-#        miniconda-version: 'latest'
         python-version: '3.10'
 
     - name: Install
     # install dependencies
       run: |
-        conda env create -f OrthoIndex.yaml
         git clone --recurse-submodules https://github.com/zhangrengang/Centromics
         cd Centromics
-
         # install
-         conda env create -f Centromics.yaml
-         export PATH=/usr/share/miniconda/envs/RepCent/bin:$PATH
+        conda env create -f Centromics.yaml
+        export PATH=/usr/share/miniconda/envs/RepCent/bin:$PATH
       #   conda activate RepCent
-         ./install.sh
+        ./install.sh
 
     
     - name: Test 
