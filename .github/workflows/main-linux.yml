@@ -39,6 +39,9 @@ jobs:
         ls -al REPcluster/
         ./install.sh
     
+    - name: Install via mamba
+      run: |
+        mamba env create -f Centromics.yaml
     - name: Test
       run: |
         ls -al
