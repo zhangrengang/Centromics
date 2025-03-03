@@ -41,6 +41,7 @@ jobs:
     
     - name: Install via mamba
       run: |
+        conda install mamba
         mamba env create -f Centromics.yaml
     - name: Test
       run: |
