@@ -26,19 +26,15 @@ jobs:
         python-version: '3.10'
 
     - name: Install
-    # install dependencies
       run: |
         git clone --recurse-submodules https://github.com/zhangrengang/Centromics
         cd Centromics
         # install
         conda env create -f Centromics.yaml
         export PATH=/usr/share/miniconda/envs/RepCent/bin:$PATH
-      #   conda activate RepCent
         ./install.sh
     
     - name: Test 
       run: |
         ls -al
         pwd
-#    - run: cd example_data && bash example.sh
-      
