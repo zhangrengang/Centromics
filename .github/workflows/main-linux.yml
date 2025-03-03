@@ -27,6 +27,8 @@ jobs:
 
     - name: Install
       run: |
+        ls -al
+        pwd
         git clone --recurse-submodules https://github.com/zhangrengang/Centromics
         cd Centromics
         # install
@@ -34,7 +36,7 @@ jobs:
         export PATH=/usr/share/miniconda/envs/RepCent/bin:$PATH
         ./install.sh
     
-    - name: Test 
+    - name: Test
       run: |
         ls -al
         pwd
