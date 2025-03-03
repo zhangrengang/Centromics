@@ -32,9 +32,11 @@ jobs:
         #git clone --recurse-submodules https://github.com/zhangrengang/Centromics
         #cd Centromics
         # install
-        git pull --recurse-submodules
+        #git pull --recurse-submodules
+        git clone https://github.com/zhangrengang/REPcluster
         conda env create -f Centromics.yaml
         export PATH=/usr/share/miniconda/envs/RepCent/bin:$PATH
+        ls -al REPcluster/
         ./install.sh
     
     - name: Test
