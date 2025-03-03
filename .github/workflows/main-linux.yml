@@ -29,9 +29,10 @@ jobs:
       run: |
         ls -al
         pwd
-        git clone --recurse-submodules https://github.com/zhangrengang/Centromics
-        cd Centromics
+        #git clone --recurse-submodules https://github.com/zhangrengang/Centromics
+        #cd Centromics
         # install
+        git pull --recurse-submodules
         conda env create -f Centromics.yaml
         export PATH=/usr/share/miniconda/envs/RepCent/bin:$PATH
         ./install.sh
