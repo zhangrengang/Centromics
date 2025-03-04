@@ -33,18 +33,23 @@ jobs:
         #cd Centromics
         # install
         #git pull --recurse-submodules
+        conda install mamba -c conda-forge
+        which mamba
+        mamba env create -h
+        mamba env create -y -f Centromics.yaml
+
         git clone https://github.com/zhangrengang/REPcluster
-        conda env create -f Centromics.yaml
+        #conda env create -f Centromics.yaml
         export PATH=/usr/share/miniconda/envs/RepCent/bin:$PATH
         ls -al REPcluster/
         ./install.sh
     
-    - name: Install via mamba
-      run: |
-        conda install mamba -c conda-forge
-        which mamba
-        mamba env create -h
-        mamba env create --force -f Centromics.yaml
+#    - name: Install via mamba
+#      run: |
+#        conda install mamba -c conda-forge
+#        which mamba
+#        mamba env create -h
+#        mamba env create --force -f Centromics.yaml
     - name: Test
       run: |
         ls -al
