@@ -36,7 +36,7 @@ jobs:
         conda install mamba -c conda-forge
         which mamba
         mamba env create -h
-        mamba env create -y -f Centromics.yaml
+        mamba env create -p . -y -f Centromics.yaml
 
         git clone https://github.com/zhangrengang/REPcluster
         #conda env create -f Centromics.yaml
